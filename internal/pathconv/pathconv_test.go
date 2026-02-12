@@ -74,6 +74,51 @@ func TestApplyAlias(t *testing.T) {
 	}
 }
 
+func TestIsBareCommand(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"p4", true},
+		{"notepad.exe", true},
+		{"cmd", true},
+		{"./script.sh", false},
+		{"../bin/tool", false},
+		{"/usr/bin/p4", false},
+		{`C:\Windows\notepad.exe`, false},
+		{"path/to/file", false},
+		{"http://example.com", false},
+		{"https://google.com", false},
+		{".", false},
+		{".hidden", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := IsBareCommand(tt.input)
+			if got != tt.want {
+				t.Errorf("IsBareCommand(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToWindowsBareCommandPassthrough(t *testing.T) {
+	conv := NewConverter(nil, nil, true)
+
+	commands := []string{"p4", "notepad.exe", "cmd", "git"}
+	for _, cmd := range commands {
+		got, err := conv.ToWindows(cmd)
+		if err != nil {
+			t.Errorf("ToWindows(%q) error: %v", cmd, err)
+			continue
+		}
+		if got != cmd {
+			t.Errorf("ToWindows(%q) = %q, want passthrough", cmd, got)
+		}
+	}
+}
+
 func TestToWindowsURLPassthrough(t *testing.T) {
 	conv := NewConverter(nil, nil, true)
 

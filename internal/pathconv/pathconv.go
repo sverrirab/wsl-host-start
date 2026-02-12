@@ -54,13 +54,37 @@ func NewConverter(drives []protocol.DriveInfo, configAliases map[string]string, 
 	return c
 }
 
+// IsBareCommand returns true if the input looks like a bare command name
+// (e.g. "p4", "notepad.exe") rather than a path or URL. Bare commands
+// contain no path separators and don't start with "." — they should be
+// passed through to Windows for PATH + PATHEXT resolution.
+func IsBareCommand(s string) bool {
+	if strings.ContainsAny(s, `/\`) {
+		return false
+	}
+	if strings.HasPrefix(s, ".") {
+		return false
+	}
+	lower := strings.ToLower(s)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return false
+	}
+	return true
+}
+
 // ToWindows converts a WSL path to a Windows path.
 // It resolves relative paths, calls wslpath, and applies alias mapping.
-// URLs (http://, https://) are returned unchanged.
+// URLs (http://, https://) and bare command names are returned unchanged.
 func (c *Converter) ToWindows(wslPath string) (string, error) {
 	// Pass URLs through unchanged.
 	lower := strings.ToLower(wslPath)
 	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return wslPath, nil
+	}
+
+	// Bare command names (no path separators, not starting with ".") pass
+	// through unchanged — Windows resolves them via PATH + PATHEXT.
+	if IsBareCommand(wslPath) {
 		return wslPath, nil
 	}
 

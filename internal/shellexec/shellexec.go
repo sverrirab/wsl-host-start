@@ -3,6 +3,8 @@ package shellexec
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
@@ -12,8 +14,11 @@ import (
 )
 
 var (
-	shell32              = windows.NewLazySystemDLL("shell32.dll")
-	procShellExecuteExW  = shell32.NewProc("ShellExecuteExW")
+	shell32             = windows.NewLazySystemDLL("shell32.dll")
+	procShellExecuteExW = shell32.NewProc("ShellExecuteExW")
+
+	kernel32          = windows.NewLazySystemDLL("kernel32.dll")
+	procSearchPathW   = kernel32.NewProc("SearchPathW")
 )
 
 // SHELLEXECUTEINFOW matches the Win32 SHELLEXECUTEINFOW structure layout.
@@ -45,6 +50,54 @@ const (
 	swMaximize   = 3
 )
 
+// resolveCommand searches for a bare command name in PATH using PATHEXT
+// extensions, mimicking how cmd.exe resolves commands for "start".
+func resolveCommand(name string) string {
+	// If it already contains a path separator or drive letter, leave it alone.
+	if strings.ContainsAny(name, `\/`) || (len(name) >= 2 && name[1] == ':') {
+		return name
+	}
+
+	// If it already has an extension that exists on disk, return as-is.
+	if filepath.Ext(name) != "" {
+		if fullPath, err := searchPath(name); err == nil {
+			return fullPath
+		}
+		return name
+	}
+
+	// Try each PATHEXT extension.
+	pathext := os.Getenv("PATHEXT")
+	if pathext == "" {
+		pathext = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC"
+	}
+	for _, ext := range strings.Split(pathext, ";") {
+		if fullPath, err := searchPath(name + ext); err == nil {
+			return fullPath
+		}
+	}
+
+	return name
+}
+
+// searchPath uses the Windows SearchPathW API to find a file in PATH.
+func searchPath(name string) (string, error) {
+	namePtr, _ := windows.UTF16PtrFromString(name)
+	buf := make([]uint16, windows.MAX_PATH)
+	n, _, err := procSearchPathW.Call(
+		0, // lpPath = NULL → use default search order (system dirs + PATH)
+		uintptr(unsafe.Pointer(namePtr)),
+		0, // lpExtension = NULL
+		uintptr(len(buf)),
+		uintptr(unsafe.Pointer(&buf[0])),
+		0, // lpFilePart = NULL
+	)
+	if n == 0 {
+		return "", fmt.Errorf("SearchPath: %w", err)
+	}
+	return windows.UTF16ToString(buf[:n]), nil
+}
+
 // Execute runs ShellExecuteExW with the given launch request and returns the result.
 func Execute(req *protocol.LaunchRequest) *protocol.LaunchResponse {
 	resp := &protocol.LaunchResponse{}
@@ -53,6 +106,9 @@ func Execute(req *protocol.LaunchRequest) *protocol.LaunchResponse {
 	if verb == "" {
 		verb = "open"
 	}
+
+	// Resolve bare command names against PATH + PATHEXT.
+	file := resolveCommand(req.File)
 
 	sei := shellExecuteInfo{
 		fMask: seeMaskNoCloseProcess | seeMaskFlagNoUI,
@@ -63,7 +119,7 @@ func Execute(req *protocol.LaunchRequest) *protocol.LaunchResponse {
 	verbPtr, _ := windows.UTF16PtrFromString(verb)
 	sei.lpVerb = verbPtr
 
-	filePtr, _ := windows.UTF16PtrFromString(req.File)
+	filePtr, _ := windows.UTF16PtrFromString(file)
 	sei.lpFile = filePtr
 
 	if len(req.Args) > 0 {
