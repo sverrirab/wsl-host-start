@@ -87,13 +87,16 @@ func Execute(req *protocol.LaunchRequest) *protocol.LaunchResponse {
 	if sei.hProcess != 0 {
 		resp.PID = int(sei.hProcess) // Process handle, not PID, but useful for identification
 		if req.Wait {
-			windows.WaitForSingleObject(sei.hProcess, windows.INFINITE)
-			var exitCode uint32
-			if err := windows.GetExitCodeProcess(sei.hProcess, &exitCode); err == nil {
-				resp.ExitCode = int(exitCode)
+			if _, err := windows.WaitForSingleObject(sei.hProcess, windows.INFINITE); err != nil {
+				resp.Error = fmt.Sprintf("WaitForSingleObject failed: %v", err)
+			} else {
+				var exitCode uint32
+				if err := windows.GetExitCodeProcess(sei.hProcess, &exitCode); err == nil {
+					resp.ExitCode = int(exitCode)
+				}
 			}
 		}
-		windows.CloseHandle(sei.hProcess)
+		_ = windows.CloseHandle(sei.hProcess)
 	}
 
 	return resp
