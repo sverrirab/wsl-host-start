@@ -1,24 +1,38 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
+
+# Cross-platform commands
+ifeq ($(OS),Windows_NT)
+    RM = if exist bin rmdir /S /Q bin
+    MKBIN = if not exist bin mkdir bin
+else
+    RM = rm -rf bin
+    MKBIN = mkdir -p bin
+endif
 
 .PHONY: build build-wsl build-host test clean install
 
 build: build-wsl build-host
 
+build-wsl: export GOOS = linux
+build-wsl: export GOARCH = amd64
 build-wsl:
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/wstart ./cmd/wstart
+	$(MKBIN)
+	go build $(LDFLAGS) -o bin/wstart ./cmd/wstart
 
+build-host: export GOOS = windows
+build-host: export GOARCH = amd64
 build-host:
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/wstart-host.exe ./cmd/wstart-host
+	$(MKBIN)
+	go build $(LDFLAGS) -o bin/wstart-host.exe ./cmd/wstart-host
 
 test:
 	go test ./...
 
 clean:
-	rm -rf bin/
+	$(RM)
 
-# Install pre-built binaries. Run this from within WSL after building
-# on any machine (macOS, Linux, etc.) with 'make build'.
+# Install pre-built binaries. Run from within WSL.
 install:
 	@test -f bin/wstart || (echo "bin/wstart not found. Run 'make build' first." && exit 1)
 	@test -f bin/wstart-host.exe || (echo "bin/wstart-host.exe not found. Run 'make build' first." && exit 1)
