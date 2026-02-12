@@ -9,23 +9,30 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            name: linux
-          - goos: windows
-            name: windows
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-      - uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-        env:
-          GOOS: ${{ matrix.goos }}
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - name: Lint Linux packages
+        run: >
+          GOOS=linux golangci-lint run
+          ./cmd/wstart/...
+          ./internal/protocol/...
+          ./internal/config/...
+          ./internal/pathconv/...
+          ./internal/drivecache/...
+          ./internal/interop/...
+          ./internal/launch/...
+      - name: Lint Windows packages
+        run: >
+          GOOS=windows golangci-lint run
+          ./cmd/wstart-host/...
+          ./internal/protocol/...
+          ./internal/drives/...
+          ./internal/shellexec/...
 
   test:
     runs-on: ubuntu-latest
