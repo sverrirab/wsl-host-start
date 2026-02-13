@@ -137,6 +137,85 @@ Result:     P:\project            ← matches p4 workspace root
 
 Run `wstart -refresh-drives` to update the cached drive mappings.
 
+### Allowlist (host-side security)
+
+The Windows helper supports an optional allowlist that restricts which programs and subcommands can be executed. Create `allowlist.toml` in the same directory as `wstart-host.exe` (typically `%LOCALAPPDATA%\wstart\`):
+
+```toml
+# allowlist.toml — only these programs can be launched via wstart.
+# Delete this file to allow all programs.
+
+# Perforce — read-only and standard workflow commands only
+[[allow]]
+program = "p4"
+commands = [
+    # Information
+    "info", "where", "have", "opened", "changes", "describe",
+    "filelog", "annotate", "print", "fstat", "depots", "dirs",
+    "files", "sizes", "users", "clients", "branches", "labels",
+    # Diff
+    "diff", "diff2",
+    # Workspace sync & resolve
+    "sync", "resolve", "resolved",
+    # File editing workflow
+    "edit", "add", "delete", "revert", "move", "copy", "rename",
+    "lock", "unlock",
+    # Changelist management
+    "change", "submit", "shelve", "unshelve",
+    # Login
+    "login", "logout", "set",
+]
+
+# General tools
+[[allow]]
+program = "notepad.exe"
+
+[[allow]]
+program = "explorer.exe"
+
+[[allow]]
+program = "code"
+```
+
+If the file is absent, all programs are allowed. When present, the helper checks each request before executing:
+
+- **Program matching**: case-insensitive, with or without `.exe`, works with full paths (`C:\Program Files\Perforce\p4.exe` matches `p4`)
+- **Subcommand matching**: finds the first positional argument, skipping flags — so `p4 -c myclient edit file.txt` correctly matches `edit`
+- **No commands list**: any arguments are allowed (e.g., `notepad.exe`)
+- **Denied requests**: return `SE_ERR_ACCESSDENIED` with a descriptive error message
+
+### Using Perforce from WSL
+
+With wstart configured, you can run Perforce commands from your WSL shell with correct drive mapping:
+
+```bash
+# Sync your workspace (cwd is translated to the subst drive)
+wstart -wait p4 sync
+
+# Edit a file — p4 sees the correct workspace-relative path
+wstart -wait p4 edit //depot/main/src/file.cpp
+
+# Check what files you have open
+wstart -wait p4 opened
+
+# Diff against depot
+wstart -wait p4 diff ./src/file.cpp
+
+# Submit a changelist
+wstart -wait p4 submit -d "Fix buffer overflow"
+
+# View workspace info
+wstart -wait p4 info
+
+# Shell alias for convenience
+alias p4='wstart -wait p4'
+p4 sync
+p4 edit file.cpp
+p4 submit -d "my change"
+```
+
+The `-wait` flag is important for p4 — it makes wstart block until the command finishes so you see the output and get the correct exit code.
+
 ## Development
 
 ```bash
@@ -152,6 +231,7 @@ cmd/wstart/          WSL CLI entry point (linux/amd64)
 cmd/wstart-host/     Windows helper entry point (windows/amd64)
 internal/
   protocol/          Shared JSON request/response types
+  allowlist/         Host-side program/subcommand allowlist
   config/            TOML config loading
   pathconv/          Path translation with drive alias resolution
   drivecache/        TTL-based cache of drive enumeration
