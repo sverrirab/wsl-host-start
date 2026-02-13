@@ -1,9 +1,13 @@
-// Package shellexec wraps the Windows ShellExecuteExW API.
+// Package shellexec wraps Windows process execution APIs.
+// Execute() uses ShellExecuteExW for GUI operations (open, runas, edit, etc.).
+// ExecuteConsole() uses CreateProcess (via os/exec) for console programs with stdio passthrough.
 package shellexec
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"unsafe"
@@ -156,6 +160,35 @@ func Execute(req *protocol.LaunchRequest) *protocol.LaunchResponse {
 	}
 
 	return resp
+}
+
+// ExecuteConsole runs a command with stdio connected to the current console.
+// This is used for -wait mode where program output needs to flow to the terminal.
+// Returns the child process exit code.
+func ExecuteConsole(req *protocol.LaunchRequest) (int, error) {
+	file := resolveCommand(req.File)
+
+	cmd := exec.Command(file, req.Args...)
+	cmd.Dir = req.WorkDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Apply forwarded env vars on top of current environment.
+	if len(req.EnvVars) > 0 {
+		cmd.Env = os.Environ()
+		for k, v := range req.EnvVars {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+	}
+
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return exitErr.ExitCode(), nil
+		}
+		return 1, err
+	}
+	return 0, nil
 }
 
 func mapShow(show string) int32 {

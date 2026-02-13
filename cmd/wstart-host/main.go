@@ -19,7 +19,8 @@ var version = "dev"
 
 func main() {
 	drivesMode := flag.Bool("drives", false, "Enumerate drives and print JSON to stdout")
-	launchMode := flag.Bool("launch", false, "Read LaunchRequest from stdin, execute, print LaunchResponse to stdout")
+	launchMode := flag.Bool("launch", false, "Read LaunchRequest from stdin, execute via ShellExecuteEx, print LaunchResponse to stdout")
+	execMode := flag.Bool("exec", false, "Read LaunchRequest from stdin, execute with stdio passthrough, exit with child's exit code")
 	versionFlag := flag.Bool("version", false, "Print version")
 	flag.Parse()
 
@@ -34,6 +35,8 @@ func main() {
 		if err := runLaunch(); err != nil {
 			fatal(err)
 		}
+	case *execMode:
+		runExec()
 	default:
 		flag.Usage()
 		os.Exit(1)
@@ -76,6 +79,39 @@ func runLaunch() error {
 	resp := shellexec.Execute(&req)
 
 	return json.NewEncoder(os.Stdout).Encode(resp)
+}
+
+// runExec executes a command with stdio passthrough (for -wait mode).
+// The helper's exit code becomes the child's exit code.
+func runExec() {
+	var req protocol.LaunchRequest
+	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
+		fmt.Fprintf(os.Stderr, "wstart-host: decoding request: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Load and enforce allowlist.
+	exePath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wstart-host: finding executable path: %v\n", err)
+		os.Exit(1)
+	}
+	al, err := allowlist.Load(filepath.Dir(exePath))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wstart-host: loading allowlist: %v\n", err)
+		os.Exit(1)
+	}
+	if err := al.Check(req.File, req.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "wstart-host: %v\n", err)
+		os.Exit(5) // SE_ERR_ACCESSDENIED
+	}
+
+	exitCode, err := shellexec.ExecuteConsole(&req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wstart-host: %v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(exitCode)
 }
 
 func fatal(err error) {

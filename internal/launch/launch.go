@@ -148,6 +148,16 @@ func Run(opts *Options) (*Result, error) {
 	}
 
 	// 7. Invoke helper.
+	// Use --exec mode for wait+open: stdio passthrough for console programs.
+	// Use --launch mode (ShellExecuteEx) for everything else.
+	if opts.Wait && (verb == "open" || verb == "") {
+		exitCode, err := invokeHelperExec(helperPath, &req)
+		if err != nil {
+			return nil, err
+		}
+		return &Result{ExitCode: exitCode}, nil
+	}
+
 	resp, err := invokeHelper(helperPath, &req)
 	if err != nil {
 		return nil, err
@@ -258,6 +268,28 @@ func collectEnvVars(cfg *config.Config) map[string]string {
 		return nil
 	}
 	return vars
+}
+
+// invokeHelperExec runs the helper in --exec mode with stdio passthrough.
+// Program output flows directly to the terminal. Returns the child's exit code.
+func invokeHelperExec(helperPath string, req *protocol.LaunchRequest) (int, error) {
+	reqData, err := json.Marshal(req)
+	if err != nil {
+		return 1, fmt.Errorf("encoding request: %w", err)
+	}
+
+	cmd := exec.Command(helperPath, "--exec")
+	cmd.Stdin = bytes.NewReader(reqData)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return exitErr.ExitCode(), nil
+		}
+		return 1, fmt.Errorf("helper exec failed: %w", err)
+	}
+	return 0, nil
 }
 
 func invokeHelper(helperPath string, req *protocol.LaunchRequest) (*protocol.LaunchResponse, error) {
