@@ -47,19 +47,20 @@ func Run(opts *Options) (*Result, error) {
 		fmt.Fprintf(os.Stderr, "WSL version: %d, distro: %s\n", info.WSLVersion, info.DistroName)
 	}
 
-	// 2. Load config.
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, fmt.Errorf("loading config: %w", err)
-	}
-
-	// 3. Locate helper binary.
-	helperPath, err := findHelper(cfg)
+	// 2. Locate helper binary.
+	helperPath, err := findHelper()
 	if err != nil {
 		return nil, err
 	}
 	if opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Helper: %s\n", helperPath)
+	}
+
+	// 3. Load config from the helper's directory.
+	helperDir := filepath.Dir(helperPath)
+	cfg, err := config.Load(helperDir)
+	if err != nil {
+		return nil, fmt.Errorf("loading config: %w", err)
 	}
 
 	// 4. Get drive mappings.
@@ -164,11 +165,7 @@ func Run(opts *Options) (*Result, error) {
 
 // RefreshDrives forces a drive cache refresh and prints the results.
 func RefreshDrives() error {
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
-	helperPath, err := findHelper(cfg)
+	helperPath, err := findHelper()
 	if err != nil {
 		return err
 	}
@@ -192,18 +189,13 @@ func RefreshDrives() error {
 	return nil
 }
 
-func findHelper(cfg *config.Config) (string, error) {
-	// 1. Explicit config.
-	if cfg.Host.Helper != "" {
-		return cfg.Host.Helper, nil
-	}
-
-	// 2. $WSTART_HOST_PATH environment variable.
+func findHelper() (string, error) {
+	// 1. $WSTART_HOST_PATH environment variable.
 	if p := os.Getenv("WSTART_HOST_PATH"); p != "" {
 		return p, nil
 	}
 
-	// 3. Well-known locations via wslpath translation.
+	// 2. Well-known locations via wslpath translation.
 	candidates := helperCandidates()
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
@@ -212,7 +204,7 @@ func findHelper(cfg *config.Config) (string, error) {
 	}
 
 	return "", fmt.Errorf(
-		"wstart-host.exe not found. Install it with 'make install' or set host.helper in config.\n"+
+		"wstart-host.exe not found. Run install-host.ps1 or set $WSTART_HOST_PATH.\n"+
 			"Searched: %s", strings.Join(candidates, ", "),
 	)
 }

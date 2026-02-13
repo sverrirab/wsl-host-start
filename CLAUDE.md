@@ -17,7 +17,7 @@ make clean        # Remove bin/
 - `cmd/wstart/` — WSL CLI entry point (GOOS=linux)
 - `cmd/wstart-host/` — Windows helper entry point (GOOS=windows)
 - `internal/protocol/` — Shared JSON request/response types
-- `internal/config/` — TOML config loading (WSL side)
+- `internal/config/` — TOML config loading (from host directory)
 - `internal/pathconv/` — Path translation with drive alias resolution (WSL side)
 - `internal/drivecache/` — Drive cache management (WSL side)
 - `internal/interop/` — WSL environment detection (WSL side)

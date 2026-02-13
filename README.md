@@ -69,7 +69,27 @@ No daemon, no sockets, no PowerShell. The Windows helper calls Win32 APIs direct
 ### Prerequisites
 
 - WSL (1 or 2) with [interop enabled](https://learn.microsoft.com/en-us/windows/wsl/wsl-config#interop-settings) (the default)
-- Go 1.24+ (for building only — the installed binaries have no dependencies)
+- Go 1.24+ (for building from source — the installed binaries have no dependencies)
+
+### From prebuilt binaries
+
+Download `wstart` and `wstart-host.exe` from [CI artifacts](https://github.com/sverrirab/wsl-host-start/actions/workflows/ci.yml), then:
+
+**Step 1 — Windows host** (PowerShell):
+
+```powershell
+.\install-host.ps1
+```
+
+Installs `wstart-host.exe` to `%LOCALAPPDATA%\wstart\` and creates commented-out example `config.toml` and `allowlist.toml` files that you can customize.
+
+**Step 2 — WSL** (bash):
+
+```bash
+./install-wsl.sh
+```
+
+Installs `wstart` to `~/.local/bin/` and verifies the host-side installation is in place.
 
 ### From source
 
@@ -83,24 +103,11 @@ make build
 
 This cross-compiles both `bin/wstart` (linux/amd64) and `bin/wstart-host.exe` (windows/amd64).
 
-Then inside WSL:
-
-```bash
-make install
-```
-
-This copies `wstart` to `~/.local/bin/` and `wstart-host.exe` to `%LOCALAPPDATA%\wstart\`. Make sure `~/.local/bin` is in your `$PATH`.
-
-### From CI artifacts
-
-Download the latest binaries from [CI](https://github.com/sverrirab/wsl-host-start/actions/workflows/ci.yml) and place them manually:
-
-- `wstart` → `~/.local/bin/` (inside WSL)
-- `wstart-host.exe` → `%LOCALAPPDATA%\wstart\` (on Windows)
+Then run the install scripts as described above, or use `make install` from WSL to do both steps at once.
 
 ## Configuration
 
-Optional. wstart works out of the box for common cases. For advanced setups (subst drives, Perforce, env forwarding), create `~/.config/wstart/config.toml`:
+All configuration lives on the Windows host in `%LOCALAPPDATA%\wstart\` (created by `install-host.ps1`). wstart works out of the box for common cases. For advanced setups (subst drives, Perforce, env forwarding), edit `config.toml`:
 
 ```toml
 [drives]

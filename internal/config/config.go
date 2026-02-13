@@ -1,4 +1,5 @@
 // Package config loads the wstart TOML configuration file.
+// The config file lives alongside wstart-host.exe on the Windows host.
 package config
 
 import (
@@ -8,15 +9,13 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// ConfigFile is the expected filename in the helper's directory.
+const ConfigFile = "config.toml"
+
 type Config struct {
-	Host     HostConfig     `toml:"host"`
 	Drives   DrivesConfig   `toml:"drives"`
 	Env      EnvConfig      `toml:"env"`
 	Defaults DefaultsConfig `toml:"defaults"`
-}
-
-type HostConfig struct {
-	Helper string `toml:"helper"`
 }
 
 type DrivesConfig struct {
@@ -36,12 +35,16 @@ type DefaultsConfig struct {
 	Show string `toml:"show"`
 }
 
-// Load reads the config from ~/.config/wstart/config.toml.
-// Returns defaults if the file doesn't exist.
-func Load() (*Config, error) {
+// Load reads the config from the given directory (typically the directory
+// containing wstart-host.exe). Returns defaults if the file doesn't exist.
+func Load(dir string) (*Config, error) {
 	cfg := defaults()
 
-	path := configPath()
+	if dir == "" {
+		return cfg, nil
+	}
+
+	path := filepath.Join(dir, ConfigFile)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return cfg, nil
 	}
@@ -70,12 +73,4 @@ func defaults() *Config {
 			Show: "normal",
 		},
 	}
-}
-
-func configPath() string {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "wstart", "config.toml")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "wstart", "config.toml")
 }
