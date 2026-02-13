@@ -7,7 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/sverrirab/wsl-host-start/internal/allowlist"
 	"github.com/sverrirab/wsl-host-start/internal/drives"
 	"github.com/sverrirab/wsl-host-start/internal/protocol"
 	"github.com/sverrirab/wsl-host-start/internal/shellexec"
@@ -52,6 +54,23 @@ func runLaunch() error {
 	var req protocol.LaunchRequest
 	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
 		return fmt.Errorf("decoding launch request: %w", err)
+	}
+
+	// Load and enforce allowlist from the directory containing this binary.
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("finding executable path: %w", err)
+	}
+	al, err := allowlist.Load(filepath.Dir(exePath))
+	if err != nil {
+		return fmt.Errorf("loading allowlist: %w", err)
+	}
+	if err := al.Check(req.File, req.Args); err != nil {
+		resp := &protocol.LaunchResponse{
+			Error:   err.Error(),
+			ErrCode: 5, // SE_ERR_ACCESSDENIED
+		}
+		return json.NewEncoder(os.Stdout).Encode(resp)
 	}
 
 	resp := shellexec.Execute(&req)
