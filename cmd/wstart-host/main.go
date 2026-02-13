@@ -1,3 +1,5 @@
+//go:build windows
+
 // wstart-host is the Windows-side helper binary.
 // It is invoked by the WSL-side wstart CLI over stdin/stdout.
 package main

@@ -1,3 +1,5 @@
+//go:build windows
+
 // Package shellexec wraps Windows process execution APIs.
 // Execute() uses ShellExecuteExW for GUI operations (open, runas, edit, etc.).
 // ExecuteConsole() uses CreateProcess (via os/exec) for console programs with stdio passthrough.

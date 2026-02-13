@@ -1,3 +1,5 @@
+//go:build windows
+
 // Package drives enumerates Windows drive letters and their types using Win32 APIs.
 package drives
 
