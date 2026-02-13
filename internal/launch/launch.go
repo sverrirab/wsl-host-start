@@ -18,6 +18,10 @@ import (
 	"github.com/sverrirab/wsl-host-start/internal/protocol"
 )
 
+// Version is set by the WSL CLI so the launch package can verify
+// that the host helper matches.
+var Version string
+
 // Options holds the parsed CLI flags.
 type Options struct {
 	Target  string
@@ -47,13 +51,16 @@ func Run(opts *Options) (*Result, error) {
 		fmt.Fprintf(os.Stderr, "WSL version: %d, distro: %s\n", info.WSLVersion, info.DistroName)
 	}
 
-	// 2. Locate helper binary.
+	// 2. Locate helper binary and verify version.
 	helperPath, err := findHelper()
 	if err != nil {
 		return nil, err
 	}
 	if opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Helper: %s\n", helperPath)
+	}
+	if err := checkHelperVersion(helperPath, opts.Verbose); err != nil {
+		return nil, err
 	}
 
 	// 3. Load config from the helper's directory.
@@ -195,6 +202,30 @@ func RefreshDrives() error {
 			line += fmt.Sprintf(" (%s)", d.Label)
 		}
 		fmt.Println(line)
+	}
+	return nil
+}
+
+// checkHelperVersion invokes the helper with --version and compares against
+// the WSL CLI version. Returns an error if they don't match.
+func checkHelperVersion(helperPath string, verbose bool) error {
+	if Version == "" || Version == "dev" {
+		return nil // Skip check for dev builds.
+	}
+
+	out, err := exec.Command(helperPath, "--version").Output()
+	if err != nil {
+		return fmt.Errorf("querying host helper version: %w", err)
+	}
+	hostVersion := strings.TrimSpace(string(out))
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Version: wstart=%s, wstart-host=%s\n", Version, hostVersion)
+	}
+
+	if hostVersion != Version {
+		return fmt.Errorf("version mismatch: wstart %s, wstart-host.exe %s\n"+
+			"Run install-host.ps1 and install-wsl.sh to update both binaries", Version, hostVersion)
 	}
 	return nil
 }

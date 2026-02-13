@@ -45,6 +45,8 @@ func main() {
 		return
 	}
 
+	launch.Version = version
+
 	if *refreshDrives {
 		if err := launch.RefreshDrives(); err != nil {
 			fatal(err)
