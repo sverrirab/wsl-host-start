@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/sverrirab/wsl-host-start/actions/workflows/ci.yml/badge.svg)](https://github.com/sverrirab/wsl-host-start/actions/workflows/ci.yml)
 
+> **Alpha** — This project is under active development. APIs and config formats may change. Use at your own risk.
+
 Launch Windows programs from WSL — the way `start` works on Windows.
 
 ## Why
