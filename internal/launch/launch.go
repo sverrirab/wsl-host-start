@@ -42,12 +42,13 @@ type Result struct {
 
 // Run executes the full launch workflow.
 func Run(opts *Options) (*Result, error) {
-	// 1. Detect WSL interop.
+	// 1. Detect WSL interop (non-fatal — allows running in degraded environments).
 	info, err := interop.Detect()
 	if err != nil {
-		return nil, fmt.Errorf("WSL interop: %w", err)
-	}
-	if opts.Verbose {
+		if opts.Verbose {
+			fmt.Fprintf(os.Stderr, "WSL interop: %v (continuing anyway)\n", err)
+		}
+	} else if opts.Verbose {
 		fmt.Fprintf(os.Stderr, "WSL version: %d, distro: %s\n", info.WSLVersion, info.DistroName)
 	}
 
