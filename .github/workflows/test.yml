@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      # Runs all tests including the Windows-only shellexec suite
+      # (ExecuteConsole + ShellExecuteExW with hidden cmd.exe windows).
+      - name: Run tests
+        run: go test ./...
+
+      # Verify Linux binary cross-compiles cleanly from Windows.
+      - name: Cross-compile wstart
+        shell: pwsh
+        run: |
+          $env:GOOS = "linux"
+          $env:GOARCH = "amd64"
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          go build -o bin/wstart ./cmd/wstart

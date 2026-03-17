@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -305,15 +306,21 @@ func collectEnvVars(cfg *config.Config) map[string]string {
 // invokeHelperExec runs the helper in --exec mode with stdio passthrough.
 // Program output flows directly to the terminal. Returns the child's exit code.
 func invokeHelperExec(helperPath string, req *protocol.LaunchRequest) (int, error) {
+	return execWithIO(helperPath, req, os.Stdin, os.Stdout, os.Stderr)
+}
+
+// execWithIO is the testable core of invokeHelperExec. It sends req as JSON
+// followed by stdin to helperPath --exec, wiring stdout/stderr to the given writers.
+func execWithIO(helperPath string, req *protocol.LaunchRequest, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	reqData, err := json.Marshal(req)
 	if err != nil {
 		return 1, fmt.Errorf("encoding request: %w", err)
 	}
 
 	cmd := exec.Command(helperPath, "--exec")
-	cmd.Stdin = bytes.NewReader(reqData)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = io.MultiReader(bytes.NewReader(reqData), stdin)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

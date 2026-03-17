@@ -8,6 +8,7 @@ package shellexec
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,11 +168,12 @@ func Execute(req *protocol.LaunchRequest) *protocol.LaunchResponse {
 // ExecuteConsole runs a command with stdio connected to the current console.
 // This is used for -wait mode where program output needs to flow to the terminal.
 // Returns the child process exit code.
-func ExecuteConsole(req *protocol.LaunchRequest) (int, error) {
+func ExecuteConsole(req *protocol.LaunchRequest, stdin io.Reader) (int, error) {
 	file := resolveCommand(req.File)
 
 	cmd := exec.Command(file, req.Args...)
 	cmd.Dir = req.WorkDir
+	cmd.Stdin = stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
