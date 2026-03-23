@@ -22,6 +22,7 @@ func main() {
 	dryRun := flag.Bool("dry-run", false, "Print translated command without executing")
 	verbose := flag.Bool("verbose", false, "Print diagnostic info")
 	refreshDrives := flag.Bool("refresh-drives", false, "Refresh drive cache and exit")
+	checkConfig := flag.Bool("check-config", false, "Print active configuration diagnostics and exit")
 	versionFlag := flag.Bool("version", false, "Print version")
 
 	flag.Usage = func() {
@@ -33,7 +34,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  wstart https://google.com      Open URL in default browser\n")
 		fmt.Fprintf(os.Stderr, "  wstart -verb runas cmd.exe     Launch elevated command prompt\n")
 		fmt.Fprintf(os.Stderr, "  wstart -verb print report.docx Print a document\n")
-		fmt.Fprintf(os.Stderr, "  wstart -wait installer.exe     Wait for process to exit\n\n")
+		fmt.Fprintf(os.Stderr, "  wstart -wait installer.exe     Wait for process to exit\n")
+		fmt.Fprintf(os.Stderr, "  wstart -check-config           Show active config diagnostics\n\n")
 		fmt.Fprintf(os.Stderr, "Flags:\n")
 		flag.PrintDefaults()
 	}
@@ -46,6 +48,13 @@ func main() {
 	}
 
 	launch.Version = version
+
+	if *checkConfig {
+		if err := launch.CheckConfig(*verbose); err != nil {
+			fatal(err)
+		}
+		return
+	}
 
 	if *refreshDrives {
 		if err := launch.RefreshDrives(); err != nil {

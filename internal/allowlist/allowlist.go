@@ -74,10 +74,14 @@ func (lr *LoadResult) Check(file string, args []string) error {
 
 	baseName := normalizeProgram(file)
 
+	var matched bool
+	var allCommands []string
+
 	for _, rule := range lr.List.Allow {
 		if !matchProgram(baseName, rule.Program) {
 			continue
 		}
+		matched = true
 
 		// Program matches. Check subcommand restriction.
 		if len(rule.Commands) == 0 {
@@ -85,19 +89,22 @@ func (lr *LoadResult) Check(file string, args []string) error {
 		}
 
 		subcmd := firstPositionalArg(args)
-		if subcmd == "" {
-			return fmt.Errorf("denied: %q requires a subcommand (allowed: %s)",
-				rule.Program, strings.Join(rule.Commands, ", "))
-		}
-
 		for _, allowed := range rule.Commands {
 			if strings.EqualFold(subcmd, allowed) {
 				return nil
 			}
 		}
+		allCommands = append(allCommands, rule.Commands...)
+	}
 
+	if matched {
+		subcmd := firstPositionalArg(args)
+		if subcmd == "" {
+			return fmt.Errorf("denied: %q requires a subcommand (allowed: %s)",
+				baseName, strings.Join(allCommands, ", "))
+		}
 		return fmt.Errorf("denied: %q subcommand %q is not allowed (allowed: %s)",
-			rule.Program, subcmd, strings.Join(rule.Commands, ", "))
+			baseName, subcmd, strings.Join(allCommands, ", "))
 	}
 
 	return fmt.Errorf("denied: program %q is not in the allowlist (%s)",
