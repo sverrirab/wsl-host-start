@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -86,8 +87,9 @@ func runLaunch() error {
 // runExec executes a command with stdio passthrough (for -wait mode).
 // The helper's exit code becomes the child's exit code.
 func runExec() {
+	dec := json.NewDecoder(os.Stdin)
 	var req protocol.LaunchRequest
-	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
+	if err := dec.Decode(&req); err != nil {
 		fmt.Fprintf(os.Stderr, "wstart-host: decoding request: %v\n", err)
 		os.Exit(1)
 	}
@@ -108,7 +110,8 @@ func runExec() {
 		os.Exit(5) // SE_ERR_ACCESSDENIED
 	}
 
-	exitCode, err := shellexec.ExecuteConsole(&req)
+	stdin := io.MultiReader(dec.Buffered(), os.Stdin)
+	exitCode, err := shellexec.ExecuteConsole(&req, stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wstart-host: %v\n", err)
 		os.Exit(1)
