@@ -183,6 +183,135 @@ program = "notepad.exe"
 	}
 }
 
+func TestCheckEmptyAllowlistDeniesAll(t *testing.T) {
+	// An allowlist file that exists but has no rules should deny everything.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "allowlist.toml")
+	if err := os.WriteFile(path, []byte("# empty allowlist\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	lr, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lr.Loaded {
+		t.Fatal("expected allowlist to be loaded")
+	}
+
+	if err := lr.Check("notepad.exe", nil); err == nil {
+		t.Error("empty allowlist should deny everything")
+	}
+	if err := lr.Check("cmd.exe", []string{"/c", "dir"}); err == nil {
+		t.Error("empty allowlist should deny everything")
+	}
+}
+
+func TestCheckPathTraversal(t *testing.T) {
+	lr := &LoadResult{
+		Loaded: true,
+		List: &List{
+			Allow: []Rule{{Program: "notepad"}},
+		},
+	}
+
+	// Path traversal attempts should be normalized to just the base name.
+	tests := []struct {
+		file    string
+		wantErr bool
+	}{
+		{`..\..\notepad.exe`, false},           // traversal still resolves to notepad
+		{`../../notepad`, false},                // Unix-style traversal
+		{`..\..\..\..\cmd.exe`, true},           // traversal to unlisted program
+		{`C:\Windows\..\Windows\notepad.exe`, false}, // roundabout path to notepad
+	}
+
+	for _, tt := range tests {
+		err := lr.Check(tt.file, nil)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Check(%q): err=%v, wantErr=%v", tt.file, err, tt.wantErr)
+		}
+	}
+}
+
+func TestCheckProgramWithSpacesInPath(t *testing.T) {
+	lr := &LoadResult{
+		Loaded: true,
+		List: &List{
+			Allow: []Rule{{Program: "my program"}},
+		},
+	}
+
+	tests := []struct {
+		file    string
+		wantErr bool
+	}{
+		{`C:\Program Files\My App\my program.exe`, false},
+		{`C:\Program Files\My App\MY PROGRAM.EXE`, false},
+		{`/mnt/c/Program Files/My App/my program`, false},
+		{`C:\Program Files\other program.exe`, true},
+	}
+
+	for _, tt := range tests {
+		err := lr.Check(tt.file, nil)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Check(%q): err=%v, wantErr=%v", tt.file, err, tt.wantErr)
+		}
+	}
+}
+
+func TestCheckMultipleRulesForSameProgram(t *testing.T) {
+	// Two rules for the same program with different command sets.
+	// The first matching rule with a valid command should allow.
+	lr := &LoadResult{
+		Loaded: true,
+		List: &List{
+			Allow: []Rule{
+				{Program: "git", Commands: []string{"status", "log"}},
+				{Program: "git", Commands: []string{"push", "pull"}},
+			},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{"first rule match", []string{"status"}, false},
+		{"second rule match", []string{"push"}, false},
+		{"neither rule match", []string{"rebase"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := lr.Check("git", tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Check(git, %v): err=%v, wantErr=%v", tt.args, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestFirstPositionalArgWithEquals(t *testing.T) {
+	// Flags with "=" should not consume the next argument.
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--port=ssl:host:1666", "sync"}, "sync"},
+		{[]string{"--flag=value", "--other=v2", "edit"}, "edit"},
+		{[]string{"--flag=value"}, ""},
+	}
+
+	for _, tt := range tests {
+		got := firstPositionalArg(tt.args)
+		if got != tt.want {
+			t.Errorf("firstPositionalArg(%v) = %q, want %q", tt.args, got, tt.want)
+		}
+	}
+}
+
 func TestLoadMissing(t *testing.T) {
 	lr, err := Load(t.TempDir())
 	if err != nil {
