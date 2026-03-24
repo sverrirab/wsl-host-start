@@ -325,3 +325,14 @@ func TestLoadMissing(t *testing.T) {
 		t.Errorf("should allow everything: %v", err)
 	}
 }
+
+func TestLoadMalformed(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, AllowlistFile), []byte("\xef\xbb\xbf[invalid toml"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("expected error for malformed allowlist file")
+	}
+}

@@ -7,7 +7,9 @@
 package allowlist
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -54,8 +56,10 @@ func Load(dir string) (*LoadResult, error) {
 
 	var list List
 	if _, err := toml.DecodeFile(path, &list); err != nil {
-		// File doesn't exist → no allowlist → everything allowed.
-		return result, nil
+		if errors.Is(err, os.ErrNotExist) {
+			return result, nil
+		}
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 
 	result.Loaded = true
