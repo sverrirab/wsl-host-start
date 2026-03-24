@@ -98,7 +98,16 @@ func checkConfigReport(w io.Writer, report *configReport, verbose bool) {
 
 func printConfigReport(w io.Writer, report *configReport, verbose bool) {
 	fmt.Fprintf(w, "Helper:    %s\n", report.HelperPath)
-	fmt.Fprintf(w, "Config:    %s\n", filepath.Join(report.HelperDir, config.ConfigFile))
+	configPath := filepath.Join(report.HelperDir, config.ConfigFile)
+	if report.ConfigLoaded {
+		fmt.Fprintf(w, "Config:    %s\n", configPath)
+	} else {
+		fmt.Fprintf(w, "Config:    %s (not found — using defaults)\n", configPath)
+	}
+
+	// Deny list
+	fmt.Fprintf(w, "\n--- Deny List ---\n")
+	fmt.Fprintf(w, "Blocked:   %s\n", strings.Join(allowlist.DeniedPrograms(), ", "))
 
 	// Allowlist
 	fmt.Fprintf(w, "\n--- Allowlist ---\n")

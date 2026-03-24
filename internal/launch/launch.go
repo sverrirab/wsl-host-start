@@ -227,7 +227,7 @@ func checkHelperVersion(helperPath string, verbose bool) error {
 
 	if hostVersion != Version {
 		return fmt.Errorf("version mismatch: wstart %s, wstart-host.exe %s\n"+
-			"Run install-host.ps1 and install-wsl.sh to update both binaries", Version, hostVersion)
+			"Download the latest release and run wstart-host.exe --install", Version, hostVersion)
 	}
 	return nil
 }

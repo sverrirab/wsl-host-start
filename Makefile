@@ -12,7 +12,7 @@ endif
 
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
-.PHONY: build build-wsl build-host test clean install
+.PHONY: build build-wsl build-host test clean
 
 build: build-wsl build-host
 
@@ -36,10 +36,3 @@ test:
 clean:
 	@$(RM_BIN)
 	@echo Cleaned bin/
-
-# Install from WSL.
-install:
-	@./install-wsl.sh
-	@echo ""
-	@echo "To install the host helper, run from PowerShell:"
-	@echo "  .\\install-host.ps1"
