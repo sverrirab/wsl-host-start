@@ -120,6 +120,27 @@ func TestCheckConfigReportEnvAnalysis(t *testing.T) {
 	assertContains(t, out, "Not set:       P4USER")
 }
 
+func TestCheckConfigReportConfigNotFound(t *testing.T) {
+	report := &launch.ConfigReport{
+		HelperPath:      "/mnt/c/wstart/wstart-host.exe",
+		HelperDir:       "/mnt/c/wstart",
+		ConfigLoaded:    false,
+		AllowlistLoaded: false,
+		AllowlistPath:   "/mnt/c/wstart/allowlist.toml",
+		Config: &config.Config{
+			Env:      config.EnvConfig{Block: []string{"P4PASSWD"}},
+			Drives:   config.DrivesConfig{AutoDetect: true, PreferAliases: true},
+			Defaults: config.DefaultsConfig{Verb: "open", Show: "normal"},
+		},
+	}
+
+	var buf bytes.Buffer
+	launch.CheckConfigReport(&buf, report, false)
+	out := buf.String()
+
+	assertContains(t, out, "config.toml (not found — using defaults)")
+}
+
 func TestCheckConfigReportVerbose(t *testing.T) {
 	report := &launch.ConfigReport{
 		HelperPath:      "/mnt/c/wstart/wstart-host.exe",
