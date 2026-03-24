@@ -11,6 +11,12 @@ import (
 	"github.com/sverrirab/wsl-host-start/internal/config"
 )
 
+// configFileExists reports whether config.toml exists in the given directory.
+func configFileExists(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, config.ConfigFile))
+	return err == nil
+}
+
 // configReport holds the diagnostic information about the active configuration.
 type configReport struct {
 	HelperPath string
@@ -56,7 +62,7 @@ func buildConfigReport() (*configReport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}
-	report.ConfigLoaded = true
+	report.ConfigLoaded = configFileExists(report.HelperDir)
 	report.Config = cfg
 
 	al, err := allowlist.Load(report.HelperDir)
@@ -98,7 +104,12 @@ func checkConfigReport(w io.Writer, report *configReport, verbose bool) {
 
 func printConfigReport(w io.Writer, report *configReport, verbose bool) {
 	fmt.Fprintf(w, "Helper:    %s\n", report.HelperPath)
-	fmt.Fprintf(w, "Config:    %s\n", filepath.Join(report.HelperDir, config.ConfigFile))
+	configPath := filepath.Join(report.HelperDir, config.ConfigFile)
+	if report.ConfigLoaded {
+		fmt.Fprintf(w, "Config:    %s\n", configPath)
+	} else {
+		fmt.Fprintf(w, "Config:    %s (not found — using defaults)\n", configPath)
+	}
 
 	// Allowlist
 	fmt.Fprintf(w, "\n--- Allowlist ---\n")
