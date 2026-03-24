@@ -24,12 +24,18 @@ func main() {
 	drivesMode := flag.Bool("drives", false, "Enumerate drives and print JSON to stdout")
 	launchMode := flag.Bool("launch", false, "Read LaunchRequest from stdin, execute via ShellExecuteEx, print LaunchResponse to stdout")
 	execMode := flag.Bool("exec", false, "Read LaunchRequest from stdin, execute with stdio passthrough, exit with child's exit code")
+	checkConfig := flag.Bool("check-config", false, "Print active configuration diagnostics and exit")
+	verbose := flag.Bool("verbose", false, "Print extra detail in check-config output")
 	versionFlag := flag.Bool("version", false, "Print version")
 	flag.Parse()
 
 	switch {
 	case *versionFlag:
 		fmt.Println(version)
+	case *checkConfig:
+		if err := runCheckConfig(*verbose); err != nil {
+			fatal(err)
+		}
 	case *drivesMode:
 		if err := runDrives(); err != nil {
 			fatal(err)

@@ -74,7 +74,7 @@ if (-not (Test-Path $configPath)) {
 # verb = "open"
 # show = "normal"  # normal | min | max | hidden
 '@
-    Set-Content -Path $configPath -Value $configContent -Encoding UTF8
+    [System.IO.File]::WriteAllText($configPath, $configContent)
     Write-Host "Created example config at $configPath" -ForegroundColor Green
 } else {
     Write-Host "Config already exists at $configPath (skipped)" -ForegroundColor Yellow
@@ -117,7 +117,7 @@ if (-not (Test-Path $allowlistPath)) {
 # [[allow]]
 # program = "code"
 '@
-    Set-Content -Path $allowlistPath -Value $allowlistContent -Encoding UTF8
+    [System.IO.File]::WriteAllText($allowlistPath, $allowlistContent)
     Write-Host "Created example allowlist at $allowlistPath" -ForegroundColor Green
 } else {
     Write-Host "Allowlist already exists at $allowlistPath (skipped)" -ForegroundColor Yellow
