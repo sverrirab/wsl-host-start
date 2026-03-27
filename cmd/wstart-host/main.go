@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sverrirab/wsl-host-start/internal/allowlist"
 	"github.com/sverrirab/wsl-host-start/internal/drives"
@@ -75,21 +76,31 @@ func runDrives() error {
 }
 
 func runSignConfig() error {
-	dir, err := exeDir()
+	dir, err := configDir()
 	if err != nil {
 		return err
 	}
-	if err := signing.SignAllConfigs(dir); err != nil {
+	fmt.Printf("Config directory: %s\n", dir)
+	signed, err := signing.SignAllConfigs(dir)
+	if err != nil {
 		return err
 	}
-	fmt.Println("Config files signed successfully.")
+	if len(signed) == 0 {
+		fmt.Println("No config files found to sign.")
+		return nil
+	}
+	for _, f := range signed {
+		sig := readSigShort(f + ".sig")
+		fmt.Printf("  Signed %s  (%s)\n", filepath.Base(f), sig)
+	}
+	fmt.Println("Done.")
 	return nil
 }
 
 // loadAndVerify resolves the exe directory, verifies config signatures,
 // and loads the allowlist. This is the shared security gate for launch/exec.
 func loadAndVerify() (dir string, al *allowlist.LoadResult, err error) {
-	dir, err = exeDir()
+	dir, err = configDir()
 	if err != nil {
 		return "", nil, err
 	}
@@ -99,7 +110,7 @@ func loadAndVerify() (dir string, al *allowlist.LoadResult, err error) {
 	if _, found, kerr := signing.LoadKey(); kerr != nil {
 		return "", nil, fmt.Errorf("checking signing key: %w", kerr)
 	} else if !found {
-		if serr := signing.SignAllConfigs(dir); serr != nil {
+		if _, serr := signing.SignAllConfigs(dir); serr != nil {
 			return "", nil, fmt.Errorf("initial config signing: %w", serr)
 		}
 	} else {
@@ -167,7 +178,28 @@ func runExec() {
 	os.Exit(exitCode)
 }
 
-func exeDir() (string, error) {
+// configDir returns the directory containing config files.
+// Prefers the install directory (%LOCALAPPDATA%\wstart) if it exists,
+// otherwise falls back to the directory containing the running executable.
+// readSigShort reads a .sig file and returns a truncated hash for display.
+func readSigShort(sigPath string) string {
+	data, err := os.ReadFile(sigPath)
+	if err != nil {
+		return "?"
+	}
+	s := strings.TrimSpace(string(data))
+	if len(s) > 16 {
+		return s[:16] + "..."
+	}
+	return s
+}
+
+func configDir() (string, error) {
+	if dir, err := install.InstallDir(); err == nil {
+		if _, serr := os.Stat(dir); serr == nil {
+			return dir, nil
+		}
+	}
 	exePath, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("finding executable path: %w", err)

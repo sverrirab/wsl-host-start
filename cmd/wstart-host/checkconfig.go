@@ -17,11 +17,10 @@ import (
 )
 
 func runCheckConfig(verbose bool) error {
-	exePath, err := os.Executable()
+	dir, err := configDir()
 	if err != nil {
-		return fmt.Errorf("finding executable path: %w", err)
+		return err
 	}
-	dir := filepath.Dir(exePath)
 
 	printHostCheckConfig(os.Stdout, dir, verbose)
 	return nil
@@ -92,7 +91,8 @@ func printHostCheckConfig(w io.Writer, dir string, verbose bool) {
 				if !r.Exists {
 					fmt.Fprintf(w, "  %-20s (not present)\n", name+":")
 				} else if r.SigErr == nil {
-					fmt.Fprintf(w, "  %-20s OK\n", name+":")
+					sig := readSigShort(r.Path + ".sig")
+					fmt.Fprintf(w, "  %-20s OK (%s)\n", name+":", sig)
 				} else {
 					fmt.Fprintf(w, "  %-20s FAILED (%v)\n", name+":", r.SigErr)
 				}

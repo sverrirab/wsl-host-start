@@ -25,24 +25,20 @@ func configFiles(dir string) []string {
 }
 
 // SignAllConfigs signs all existing config files in dir using the registry key.
-// Creates the key if it doesn't exist yet.
-func SignAllConfigs(dir string) error {
+// Creates the key if it doesn't exist yet. Returns the list of files that were signed.
+func SignAllConfigs(dir string) ([]string, error) {
 	key, err := EnsureKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	files := configFiles(dir)
-	if len(files) == 0 {
-		return nil
-	}
-
 	for _, f := range files {
 		if err := SignFile(key, f); err != nil {
-			return fmt.Errorf("signing %s: %w", filepath.Base(f), err)
+			return nil, fmt.Errorf("signing %s: %w", filepath.Base(f), err)
 		}
 	}
-	return nil
+	return files, nil
 }
 
 // VerifyResult holds the verification status for a single config file.

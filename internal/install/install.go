@@ -88,26 +88,26 @@ func Run() error {
 	}
 
 	// Create default config files.
-	created := false
 	if c, err := createIfMissing(filepath.Join(dir, "config.toml"), defaultConfig); err != nil {
 		return err
 	} else if c {
 		fmt.Println("  Created config.toml")
-		created = true
 	}
 	if c, err := createIfMissing(filepath.Join(dir, "allowlist.toml"), defaultAllowlist); err != nil {
 		return err
 	} else if c {
 		fmt.Println("  Created allowlist.toml")
-		created = true
 	}
 
 	// Sign config files.
-	if err := signing.SignAllConfigs(dir); err != nil {
+	signed, err := signing.SignAllConfigs(dir)
+	if err != nil {
 		return fmt.Errorf("signing config files: %w", err)
 	}
-	if created {
-		fmt.Println("  Signed config files")
+	if len(signed) > 0 {
+		for _, f := range signed {
+			fmt.Printf("  Signed %s\n", filepath.Base(f))
+		}
 	}
 
 	// Print WSL instructions.
