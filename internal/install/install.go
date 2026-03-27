@@ -14,15 +14,13 @@ import (
 	"github.com/sverrirab/wsl-host-start/internal/signing"
 )
 
-const installSubdir = "wstart"
-
 // InstallDir returns the target installation directory.
 func InstallDir() (string, error) {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return "", fmt.Errorf("%%LOCALAPPDATA%% is not set")
+	programFiles := os.Getenv("ProgramFiles")
+	if programFiles == "" {
+		return "", fmt.Errorf("%%ProgramFiles%% is not set")
 	}
-	return filepath.Join(localAppData, installSubdir), nil
+	return filepath.Join(programFiles, "wstart"), nil
 }
 
 // IsRunningFromInstallDir reports whether the current executable is already

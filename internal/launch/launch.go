@@ -247,7 +247,7 @@ func findHelper() (string, error) {
 	}
 
 	return "", fmt.Errorf(
-		"wstart-host.exe not found. Run install-host.ps1 or set $WSTART_HOST_PATH.\n"+
+		"wstart-host.exe not found. Run wstart-host.exe --install or set $WSTART_HOST_PATH.\n"+
 			"Searched: %s", strings.Join(candidates, ", "),
 	)
 }
@@ -255,8 +255,21 @@ func findHelper() (string, error) {
 func helperCandidates() []string {
 	var candidates []string
 
-	// Try to resolve %LOCALAPPDATA% via cmd.exe.
-	out, err := exec.Command("cmd.exe", "/C", "echo", "%LOCALAPPDATA%").Output()
+	// 1. Try to resolve %ProgramFiles% via cmd.exe (primary install location).
+	out, err := exec.Command("cmd.exe", "/C", "echo", "%ProgramFiles%").Output()
+	if err == nil {
+		winPath := strings.TrimSpace(strings.ReplaceAll(string(out), "\r", ""))
+		if winPath != "" && winPath != "%ProgramFiles%" {
+			wslOut, err := exec.Command("wslpath", "-u", winPath).Output()
+			if err == nil {
+				programFiles := strings.TrimSpace(string(wslOut))
+				candidates = append(candidates, filepath.Join(programFiles, "wstart", "wstart-host.exe"))
+			}
+		}
+	}
+
+	// 2. Try %LOCALAPPDATA% for backwards compatibility with older installs.
+	out, err = exec.Command("cmd.exe", "/C", "echo", "%LOCALAPPDATA%").Output()
 	if err == nil {
 		winPath := strings.TrimSpace(strings.ReplaceAll(string(out), "\r", ""))
 		if winPath != "" && winPath != "%LOCALAPPDATA%" {
@@ -268,7 +281,7 @@ func helperCandidates() []string {
 		}
 	}
 
-	// Also check relative to the wstart binary itself (for portable installs).
+	// 3. Check relative to the wstart binary itself (for portable installs).
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		candidates = append(candidates, filepath.Join(dir, "wstart-host.exe"))

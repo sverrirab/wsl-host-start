@@ -15,6 +15,7 @@ import (
 
 	"github.com/sverrirab/wsl-host-start/internal/allowlist"
 	"github.com/sverrirab/wsl-host-start/internal/drives"
+	"github.com/sverrirab/wsl-host-start/internal/elevate"
 	"github.com/sverrirab/wsl-host-start/internal/install"
 	"github.com/sverrirab/wsl-host-start/internal/protocol"
 	"github.com/sverrirab/wsl-host-start/internal/shellexec"
@@ -38,6 +39,11 @@ func main() {
 	case *versionFlag:
 		fmt.Println(version)
 	case *installMode:
+		if elevated, err := elevate.RequireElevation(os.Args[1:]); err != nil {
+			fatal(err)
+		} else if elevated {
+			return // Elevated process was launched; this one can exit.
+		}
 		if err := install.Run(); err != nil {
 			fatal(err)
 		}
@@ -46,6 +52,11 @@ func main() {
 			fatal(err)
 		}
 	case *signConfig:
+		if elevated, err := elevate.RequireElevation(os.Args[1:]); err != nil {
+			fatal(err)
+		} else if elevated {
+			return
+		}
 		if err := runSignConfig(); err != nil {
 			fatal(err)
 		}

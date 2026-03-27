@@ -43,17 +43,20 @@ wstart -wait installer.exe       # Wait for process to exit
    .\wstart-host.exe --install
    ```
 
-   This will:
-   - Copy both binaries to `%LOCALAPPDATA%\wstart\`
+   This will request **administrator privileges** (UAC prompt) and then:
+   - Copy both binaries to `C:\Program Files\wstart\`
    - Create default `config.toml` and `allowlist.toml` (commented out)
    - Generate a signing key and sign the config files
    - Print the WSL setup commands
+
+   Installing to Program Files ensures that WSL processes cannot modify
+   the host binary or config files without administrator access.
 
 3. In your **WSL session**, create a symlink (the installer prints the exact command):
 
    ```bash
    mkdir -p ~/.local/bin
-   ln -sf "/mnt/c/Users/<you>/AppData/Local/wstart/wstart" ~/.local/bin/wstart
+   ln -sf "/mnt/c/Program Files/wstart/wstart" ~/.local/bin/wstart
    ```
 
 4. Ensure `~/.local/bin` is in your PATH. If not, add to `~/.bashrc` or `~/.zshrc`:
@@ -124,7 +127,7 @@ The Windows helper (`wstart-host.exe`) has additional management flags:
 
 ## Configuration
 
-All configuration lives on the Windows host in `%LOCALAPPDATA%\wstart\`. wstart works out of the box for common cases. For advanced setups (subst drives, Perforce, env forwarding), edit `config.toml`.
+All configuration lives on the Windows host in `C:\Program Files\wstart\`. wstart works out of the box for common cases. For advanced setups (subst drives, Perforce, env forwarding), edit `config.toml`.
 
 **Important:** After editing any config file, re-sign it from PowerShell:
 
@@ -190,7 +193,7 @@ wstart-host.exe --check-config --verbose
 
 ### Allowlist
 
-The Windows helper supports an optional allowlist that restricts which programs and subcommands can be executed. Edit `allowlist.toml` in `%LOCALAPPDATA%\wstart\`:
+The Windows helper supports an optional allowlist that restricts which programs and subcommands can be executed. Edit `allowlist.toml` in `C:\Program Files\wstart\`:
 
 ```toml
 # Only these programs can be launched via wstart.
@@ -224,16 +227,24 @@ The following programs are **always blocked** regardless of allowlist configurat
 
 This deny list is compiled into the binary and cannot be overridden by editing config files.
 
+### Install directory protection
+
+wstart installs to `C:\Program Files\wstart\`, which requires **administrator privileges** to modify. This means:
+
+- A WSL process (running as a normal user) **cannot** replace the host binary, config files, or signature files
+- `--install` and `--sign-config` automatically request UAC elevation
+- Read-only operations (`--launch`, `--exec`, `--check-config`) do not require elevation
+
 ### Config signing
 
-Config files (`config.toml`, `allowlist.toml`) are protected by HMAC-SHA256 signatures:
+Config files (`config.toml`, `allowlist.toml`) are additionally protected by HMAC-SHA256 signatures:
 
 - A random signing key is stored in the **Windows Registry** (`HKCU\Software\wstart`), which is not accessible from the WSL filesystem
 - Each config file has a companion `.sig` file containing its signature
 - The host binary verifies signatures on every launch — tampered files are rejected
-- After legitimate edits, re-sign with `wstart-host.exe --sign-config`
+- After legitimate edits, re-sign with `wstart-host.exe --sign-config` (requires admin)
 
-This prevents a compromised WSL process from silently modifying the allowlist to grant itself broader access.
+Together with the Program Files location, this provides defense in depth against a compromised WSL process.
 
 ## Using Perforce from WSL
 
