@@ -14,10 +14,6 @@ import (
 )
 
 var (
-	advapi32              = windows.NewLazySystemDLL("advapi32.dll")
-	procOpenProcessToken  = advapi32.NewProc("OpenProcessToken")
-	procGetTokenInformation = advapi32.NewProc("GetTokenInformation")
-
 	shell32             = windows.NewLazySystemDLL("shell32.dll")
 	procShellExecuteExW = shell32.NewProc("ShellExecuteExW")
 )
@@ -100,8 +96,8 @@ func RunElevated(args []string) error {
 
 	// Wait for the elevated process to finish so the user sees its output.
 	if sei.hProcess != 0 {
-		windows.WaitForSingleObject(windows.Handle(sei.hProcess), windows.INFINITE)
-		windows.CloseHandle(windows.Handle(sei.hProcess))
+		_, _ = windows.WaitForSingleObject(windows.Handle(sei.hProcess), windows.INFINITE)
+		_ = windows.CloseHandle(windows.Handle(sei.hProcess))
 	}
 
 	return nil
