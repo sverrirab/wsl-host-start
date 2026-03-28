@@ -20,7 +20,7 @@ builds:
 archives:
   - id: release
     builds: [wstart, wstart-host]
-    format: zip
+    formats: [zip]
     name_template: "wstart_{{.Version}}_windows_{{ .Arch }}"
     # Bundle both binaries together — user extracts and runs wstart-host.exe --install.
     wrap_in_directory: false
