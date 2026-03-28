@@ -20,10 +20,20 @@ builds:
 archives:
   - id: release
     builds: [wstart, wstart-host]
-    format: zip
+    formats: [zip]
     name_template: "wstart_{{.Version}}_windows_{{ .Arch }}"
     # Bundle both binaries together — user extracts and runs wstart-host.exe --install.
     wrap_in_directory: false
+
+scoops:
+  - repository:
+      owner: sverrirab
+      name: scoop-bucket
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/sverrirab/wsl-host-start
+    description: Launch Windows programs from WSL with path translation
+    license: MIT
+    post_install: ["Write-Host ''; Write-Host 'Run: wstart-host.exe --install' -ForegroundColor Cyan; Write-Host 'This copies binaries to Program Files (requires admin). Your existing config files are preserved.' "]
 
 checksum:
   name_template: "checksums.txt"

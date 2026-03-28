@@ -85,16 +85,20 @@ func Run() error {
 		fmt.Println("  You can copy it manually later.")
 	}
 
-	// Create default config files.
-	if c, err := createIfMissing(filepath.Join(dir, "config.toml"), defaultConfig); err != nil {
-		return err
-	} else if c {
-		fmt.Println("  Created config.toml")
-	}
-	if c, err := createIfMissing(filepath.Join(dir, "allowlist.toml"), defaultAllowlist); err != nil {
-		return err
-	} else if c {
-		fmt.Println("  Created allowlist.toml")
+	// Create default config files (never overwrite existing).
+	for _, cf := range []struct{ name, content string }{
+		{"config.toml", defaultConfig},
+		{"allowlist.toml", defaultAllowlist},
+	} {
+		created, err := createIfMissing(filepath.Join(dir, cf.name), cf.content)
+		if err != nil {
+			return err
+		}
+		if created {
+			fmt.Printf("  Created %s\n", cf.name)
+		} else {
+			fmt.Printf("  Existing %s preserved\n", cf.name)
+		}
 	}
 
 	// Sign config files.

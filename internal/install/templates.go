@@ -31,8 +31,28 @@ const defaultConfig = `# config.toml — wstart configuration.
 `
 
 const defaultAllowlist = `# allowlist.toml — Restrict which programs wstart can launch.
-# Delete this file (or leave it absent) to allow all programs.
-# Uncomment and edit the sections below to enable the allowlist.
+#
+# When this file contains [[allow]] entries, ONLY listed programs can be
+# launched. Remove all [[allow]] entries to allow all programs.
+#
+# Program matching is case-insensitive, with or without .exe extension.
+# For example, "notepad" matches notepad.exe, Notepad.EXE, etc.
+#
+# After editing, re-sign from an elevated PowerShell:
+#   wstart-host.exe --sign-config
+
+# --- Enabled by default ---
+
+[[allow]]
+program = "notepad"
+
+[[allow]]
+program = "explorer.exe"
+
+# --- Examples (uncomment to enable) ---
+#
+# [[allow]]
+# program = "code"
 #
 # [[allow]]
 # program = "p4"
@@ -53,13 +73,4 @@ const defaultAllowlist = `# allowlist.toml — Restrict which programs wstart ca
 #     # Login
 #     "login", "logout", "set",
 # ]
-#
-# [[allow]]
-# program = "notepad.exe"
-#
-# [[allow]]
-# program = "explorer.exe"
-#
-# [[allow]]
-# program = "code"
 `

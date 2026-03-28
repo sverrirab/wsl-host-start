@@ -33,65 +33,35 @@ wstart -wait installer.exe       # Wait for process to exit
 
 ## Installation
 
-### From a release (recommended)
-
-1. Download the latest `wstart_*_windows_amd64.zip` from [GitHub Releases](https://github.com/sverrirab/wsl-host-start/releases).
-
-2. Extract the zip and run the installer from **PowerShell**:
-
-   ```powershell
-   .\wstart-host.exe --install
-   ```
-
-   This will request **administrator privileges** (UAC prompt) and then:
-   - Copy both binaries to `C:\Program Files\wstart\`
-   - Create default `config.toml` and `allowlist.toml` (commented out)
-   - Generate a signing key and sign the config files
-   - Print the WSL setup commands
-
-   Installing to Program Files ensures that WSL processes cannot modify
-   the host binary or config files without administrator access.
-
-3. In your **WSL session**, create a symlink. The installer prints the exact command for your system, but it will look like:
-
-   ```bash
-   mkdir -p ~/.local/bin
-   ln -sf "/mnt/c/Program Files/wstart/wstart" ~/.local/bin/wstart
-   ```
-
-   Use the path printed by `--install` — it accounts for non-standard Windows drive letters.
-
-4. Ensure `~/.local/bin` is in your PATH. If not, add to `~/.bashrc` or `~/.zshrc`:
-
-   ```bash
-   export PATH="$HOME/.local/bin:$PATH"
-   ```
-
-5. Test it:
-
-   ```bash
-   wstart .
-   ```
-
-### From source
-
-Build on any machine (macOS, Linux, Windows with Go 1.24+):
-
-```bash
-git clone https://github.com/sverrirab/wsl-host-start.git
-cd wsl-host-start
-make build
-```
-
-This cross-compiles both `bin/wstart` (linux/amd64) and `bin/wstart-host.exe` (windows/amd64). Then run the installer:
+### Using Scoop (recommended)
 
 ```powershell
-.\bin\wstart-host.exe --install
+scoop bucket add wstart https://github.com/sverrirab/scoop-bucket
+scoop install wstart
 ```
+
+Then complete the setup:
+
+```powershell
+wstart-host.exe --install
+```
+
+This requests **administrator privileges** to copy binaries to `C:\Program Files\wstart\`, create default configs, and print WSL setup instructions. Installing to Program Files ensures WSL processes cannot modify the host binary or config files.
+
+Follow the printed instructions to create a symlink in your WSL session and add it to your PATH.
+
+### Manual install / from source
+
+See [docs/manual-install.md](docs/manual-install.md) for installing from a GitHub release zip or building from source.
 
 ### Upgrading
 
-Download the new release zip (or `make build`), then run `--install` again — it will overwrite the binaries and re-sign config files. Your existing config and allowlist are preserved.
+```powershell
+scoop update wstart
+wstart-host.exe --install
+```
+
+Or download the new release and run `--install` again. Existing config and allowlist files are preserved.
 
 ### Prerequisites
 
