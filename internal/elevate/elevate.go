@@ -111,7 +111,6 @@ func RequireElevation(args []string) (bool, error) {
 		return false, nil
 	}
 
-	fmt.Println("Requesting administrator privileges...")
 	if err := RunElevated(args); err != nil {
 		return false, fmt.Errorf("failed to elevate: %w", err)
 	}

@@ -42,10 +42,23 @@ func main() {
 		if elevated, err := elevate.RequireElevation(os.Args[1:]); err != nil {
 			fatal(err)
 		} else if elevated {
-			return // Elevated process was launched; this one can exit.
+			// Elevated process finished; print instructions in this window.
+			if dir, derr := install.InstallDir(); derr == nil {
+				fmt.Println()
+				install.PrintWSLInstructions(dir)
+				fmt.Println()
+				install.PrintConfigGuide(dir)
+			}
+			return
 		}
 		if err := install.Run(); err != nil {
 			fatal(err)
+		}
+		if dir, derr := install.InstallDir(); derr == nil {
+			fmt.Println()
+			install.PrintWSLInstructions(dir)
+			fmt.Println()
+			install.PrintConfigGuide(dir)
 		}
 	case *checkConfig:
 		if err := runCheckConfig(*verbose); err != nil {

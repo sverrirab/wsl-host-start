@@ -108,14 +108,6 @@ func Run() error {
 		}
 	}
 
-	// Print WSL instructions.
-	fmt.Println()
-	printWSLInstructions(dir)
-
-	// Print config instructions.
-	fmt.Println()
-	printConfigGuide(dir)
-
 	return nil
 }
 
@@ -158,7 +150,8 @@ func winPathToWSL(winPath string) string {
 	return "/mnt/" + drive + rest
 }
 
-func printWSLInstructions(dir string) {
+// PrintWSLInstructions prints the WSL symlink setup commands for the given install directory.
+func PrintWSLInstructions(dir string) {
 	wslPath := winPathToWSL(dir)
 	wslBinary := wslPath + "/wstart"
 
@@ -175,7 +168,7 @@ func printWSLInstructions(dir string) {
 	fmt.Println("  wstart .")
 }
 
-func printConfigGuide(dir string) {
+func PrintConfigGuide(dir string) {
 	fmt.Println("--- Configuration ---")
 	fmt.Println()
 	fmt.Printf("Config files are in: %s\n", dir)
