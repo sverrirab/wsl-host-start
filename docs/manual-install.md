@@ -4,7 +4,7 @@ If you prefer not to use Scoop, you can install wstart manually from a GitHub re
 
 ## From a release
 
-1. Download the latest `wstart_*_windows_amd64.zip` from [GitHub Releases](https://github.com/sverrirab/wsl-host-start/releases).
+1. Download the latest `wstart_*_bundle.zip` from [GitHub Releases](https://github.com/sverrirab/wsl-host-start/releases). This contains both the Windows host and WSL binaries.
 
 2. Extract the zip and run the installer from **PowerShell**:
 

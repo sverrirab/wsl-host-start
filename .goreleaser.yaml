@@ -18,16 +18,20 @@ builds:
       - -s -w -X main.version={{.Version}}
 
 archives:
-  - id: release
-    builds: [wstart, wstart-host]
+  - id: wstart-linux
+    builds: [wstart]
+    formats: [zip]
+    name_template: "wstart_{{.Version}}_linux_amd64"
+    wrap_in_directory: false
+  - id: wstart-windows
+    builds: [wstart-host]
     formats: [zip]
     name_template: "wstart_{{.Version}}_windows_amd64"
-    # Bundle both binaries together — user extracts and runs wstart-host.exe --install.
-    allow_different_binary_count: true
     wrap_in_directory: false
 
 scoops:
-  - repository:
+  - ids: [wstart-windows]
+    repository:
       owner: sverrirab
       name: scoop-bucket
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
