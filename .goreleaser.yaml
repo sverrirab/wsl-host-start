@@ -5,7 +5,7 @@ builds:
     main: ./cmd/wstart
     binary: wstart
     goos: [linux]
-    goarch: [amd64, arm64]
+    goarch: [amd64]
     ldflags:
       - -s -w -X main.version={{.Version}}
 
@@ -13,7 +13,7 @@ builds:
     main: ./cmd/wstart-host
     binary: wstart-host
     goos: [windows]
-    goarch: [amd64, arm64]
+    goarch: [amd64]
     ldflags:
       - -s -w -X main.version={{.Version}}
 
@@ -21,8 +21,9 @@ archives:
   - id: release
     builds: [wstart, wstart-host]
     formats: [zip]
-    name_template: "wstart_{{.Version}}_windows_{{ .Arch }}"
+    name_template: "wstart_{{.Version}}_windows_amd64"
     # Bundle both binaries together — user extracts and runs wstart-host.exe --install.
+    allow_different_binary_count: true
     wrap_in_directory: false
 
 scoops:
