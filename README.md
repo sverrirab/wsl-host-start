@@ -52,12 +52,14 @@ wstart -wait installer.exe       # Wait for process to exit
    Installing to Program Files ensures that WSL processes cannot modify
    the host binary or config files without administrator access.
 
-3. In your **WSL session**, create a symlink (the installer prints the exact command):
+3. In your **WSL session**, create a symlink. The installer prints the exact command for your system, but it will look like:
 
    ```bash
    mkdir -p ~/.local/bin
    ln -sf "/mnt/c/Program Files/wstart/wstart" ~/.local/bin/wstart
    ```
+
+   Use the path printed by `--install` — it accounts for non-standard Windows drive letters.
 
 4. Ensure `~/.local/bin` is in your PATH. If not, add to `~/.bashrc` or `~/.zshrc`:
 
