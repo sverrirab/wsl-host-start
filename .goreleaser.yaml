@@ -33,7 +33,7 @@ scoops:
     homepage: https://github.com/sverrirab/wsl-host-start
     description: Launch Windows programs from WSL with path translation
     license: MIT
-    post_install: ["Write-Host ''; Write-Host 'Run: wstart-host.exe --install' -ForegroundColor Cyan; Write-Host 'This copies binaries to Program Files (requires admin) and prints WSL setup instructions.' "]
+    post_install: ["Write-Host ''; Write-Host 'Run: wstart-host.exe --install' -ForegroundColor Cyan; Write-Host 'This copies binaries to Program Files (requires admin). Your existing config files are preserved.' "]
 
 checksum:
   name_template: "checksums.txt"
