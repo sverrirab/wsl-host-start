@@ -13,14 +13,14 @@ import (
 	"github.com/sverrirab/wsl-host-start/internal/config"
 	"github.com/sverrirab/wsl-host-start/internal/drives"
 	"github.com/sverrirab/wsl-host-start/internal/protocol"
+	"github.com/sverrirab/wsl-host-start/internal/signing"
 )
 
 func runCheckConfig(verbose bool) error {
-	exePath, err := os.Executable()
+	dir, err := configDir()
 	if err != nil {
-		return fmt.Errorf("finding executable path: %w", err)
+		return err
 	}
-	dir := filepath.Dir(exePath)
 
 	printHostCheckConfig(os.Stdout, dir, verbose)
 	return nil
@@ -41,6 +41,10 @@ func printHostCheckConfig(w io.Writer, dir string, verbose bool) {
 		fmt.Fprintf(w, "Config:    %s\n", configPath)
 	}
 
+	// Deny list
+	fmt.Fprintf(w, "\n--- Deny List ---\n")
+	fmt.Fprintf(w, "Blocked:   %s\n", strings.Join(allowlist.DeniedPrograms(), ", "))
+
 	// Allowlist
 	fmt.Fprintf(w, "\n--- Allowlist ---\n")
 	al, alErr := allowlist.Load(dir)
@@ -60,6 +64,37 @@ func printHostCheckConfig(w io.Writer, dir string, verbose bool) {
 					fmt.Fprintf(w, "  allow:   %s (any args)\n", rule.Program)
 				} else {
 					fmt.Fprintf(w, "  allow:   %s [%s]\n", rule.Program, strings.Join(rule.Commands, ", "))
+				}
+				// Warn if this rule targets a denied program.
+				if allowlist.CheckDenyList(rule.Program) != nil {
+					fmt.Fprintf(w, "           ^ WARNING: this program is on the deny list and will always be blocked\n")
+				}
+			}
+		}
+	}
+
+	// Config signing
+	fmt.Fprintf(w, "\n--- Config Signing ---\n")
+	_, keyFound, keyErr := signing.LoadKey()
+	if keyErr != nil {
+		fmt.Fprintf(w, "Key:       ERROR (%v)\n", keyErr)
+	} else if !keyFound {
+		fmt.Fprintf(w, "Key:       NOT SET (run --sign-config to initialize)\n")
+	} else {
+		fmt.Fprintf(w, "Key:       present (HKCU\\Software\\wstart)\n")
+		results, verErr := signing.VerifyAllConfigs(dir)
+		if verErr != nil {
+			fmt.Fprintf(w, "Status:    ERROR (%v)\n", verErr)
+		} else {
+			for _, r := range results {
+				name := filepath.Base(r.Path)
+				if !r.Exists {
+					fmt.Fprintf(w, "  %-20s (not present)\n", name+":")
+				} else if r.SigErr == nil {
+					sig := readSigShort(r.Path + ".sig")
+					fmt.Fprintf(w, "  %-20s OK (%s)\n", name+":", sig)
+				} else {
+					fmt.Fprintf(w, "  %-20s FAILED (%v)\n", name+":", r.SigErr)
 				}
 			}
 		}

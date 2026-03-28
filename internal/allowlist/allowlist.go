@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -67,11 +68,51 @@ func Load(dir string) (*LoadResult, error) {
 	return result, nil
 }
 
+// denyList contains programs that can never be launched, regardless of allowlist
+// configuration. These are shell/exec bypass vectors that would allow arbitrary
+// command execution on the host.
+var denyList = map[string]bool{
+	"cmd":       true,
+	"powershell": true,
+	"pwsh":      true,
+	"wscript":   true,
+	"cscript":   true,
+	"mshta":     true,
+	"rundll32":  true,
+	"regsvr32":  true,
+	"bash":      true,
+}
+
+// DeniedPrograms returns the list of programs that are unconditionally blocked.
+func DeniedPrograms() []string {
+	names := make([]string, 0, len(denyList))
+	for name := range denyList {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// CheckDenyList returns an error if the program is on the hardcoded deny list.
+// This check is unconditional and cannot be overridden by configuration.
+func CheckDenyList(file string) error {
+	baseName := normalizeProgram(file)
+	if denyList[baseName] {
+		return fmt.Errorf("denied: %q is a blocked program (hardcoded deny list — cannot be overridden)", baseName)
+	}
+	return nil
+}
+
 // Check verifies that the given file and args are permitted by the allowlist.
 // Returns nil if allowed, or an error describing why the request was denied.
 //
-// If no allowlist was loaded (lr.Loaded == false), everything is allowed.
+// The hardcoded deny list is always checked first, regardless of allowlist state.
+// If no allowlist was loaded (lr.Loaded == false), non-denied programs are allowed.
 func (lr *LoadResult) Check(file string, args []string) error {
+	if err := CheckDenyList(file); err != nil {
+		return err
+	}
+
 	if !lr.Loaded {
 		return nil
 	}

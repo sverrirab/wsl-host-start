@@ -20,7 +20,7 @@ Launch Windows programs from WSL — the way `start` works on Windows.
 
 That last point matters for tools like **Perforce** where the workspace root may live on a `subst`'d drive letter. wstart does longest-prefix alias matching so `p4` sees the drive letter it expects.
 
-## Usage
+## Quick Start
 
 ```bash
 wstart document.pdf              # Open in default PDF viewer
@@ -28,10 +28,77 @@ wstart .                         # Open current directory in Explorer
 wstart https://google.com        # Open URL in default browser
 wstart -verb runas cmd.exe       # Launch elevated command prompt
 wstart -verb print report.docx   # Print a document
-wstart -verb edit config.ini     # Open in registered editor
 wstart -wait installer.exe       # Wait for process to exit
-wstart -min notepad.exe          # Start minimized
 ```
+
+## Installation
+
+### From a release (recommended)
+
+1. Download the latest `wstart_*_windows_amd64.zip` from [GitHub Releases](https://github.com/sverrirab/wsl-host-start/releases).
+
+2. Extract the zip and run the installer from **PowerShell**:
+
+   ```powershell
+   .\wstart-host.exe --install
+   ```
+
+   This will request **administrator privileges** (UAC prompt) and then:
+   - Copy both binaries to `C:\Program Files\wstart\`
+   - Create default `config.toml` and `allowlist.toml` (commented out)
+   - Generate a signing key and sign the config files
+   - Print the WSL setup commands
+
+   Installing to Program Files ensures that WSL processes cannot modify
+   the host binary or config files without administrator access.
+
+3. In your **WSL session**, create a symlink. The installer prints the exact command for your system, but it will look like:
+
+   ```bash
+   mkdir -p ~/.local/bin
+   ln -sf "/mnt/c/Program Files/wstart/wstart" ~/.local/bin/wstart
+   ```
+
+   Use the path printed by `--install` — it accounts for non-standard Windows drive letters.
+
+4. Ensure `~/.local/bin` is in your PATH. If not, add to `~/.bashrc` or `~/.zshrc`:
+
+   ```bash
+   export PATH="$HOME/.local/bin:$PATH"
+   ```
+
+5. Test it:
+
+   ```bash
+   wstart .
+   ```
+
+### From source
+
+Build on any machine (macOS, Linux, Windows with Go 1.24+):
+
+```bash
+git clone https://github.com/sverrirab/wsl-host-start.git
+cd wsl-host-start
+make build
+```
+
+This cross-compiles both `bin/wstart` (linux/amd64) and `bin/wstart-host.exe` (windows/amd64). Then run the installer:
+
+```powershell
+.\bin\wstart-host.exe --install
+```
+
+### Upgrading
+
+Download the new release zip (or `make build`), then run `--install` again — it will overwrite the binaries and re-sign config files. Your existing config and allowlist are preserved.
+
+### Prerequisites
+
+- WSL (1 or 2) with [interop enabled](https://learn.microsoft.com/en-us/windows/wsl/wsl-config#interop-settings) (the default)
+- Go 1.24+ (only needed when building from source)
+
+## Usage
 
 ### Flags
 
@@ -45,69 +112,34 @@ wstart -min notepad.exe          # Start minimized
   -dry-run         Print translated command without executing
   -verbose         Print diagnostic info
   -refresh-drives  Refresh drive cache and exit
+  -check-config    Show active configuration diagnostics
   -version         Print version
 ```
 
-## Architecture
+### Host helper flags
 
-Two cooperating binaries connected via JSON over stdin/stdout:
+The Windows helper (`wstart-host.exe`) has additional management flags:
 
 ```
-WSL (Linux)                        Windows Host
-┌──────────────┐   LaunchRequest   ┌───────────────────┐
-│  wstart      │ ────────────────► │  wstart-host.exe  │
-│  - parse CLI │   stdin (JSON)    │  - ShellExecuteExW │
-│  - translate │ ◄──────────────── │  - drive enumerate │
-│    paths     │   stdout (JSON)   │  - exit codes      │
-└──────────────┘   LaunchResponse  └───────────────────┘
+  --install        Install binaries and create default configs
+  --check-config   Print configuration diagnostics (config, allowlist, signing, drives)
+  --sign-config    Re-sign config files after editing
+  --verbose        Show extra detail in check-config output
 ```
-
-No daemon, no sockets, no PowerShell. The Windows helper calls Win32 APIs directly for speed and full control.
-
-## Installation
-
-### Prerequisites
-
-- WSL (1 or 2) with [interop enabled](https://learn.microsoft.com/en-us/windows/wsl/wsl-config#interop-settings) (the default)
-- Go 1.24+ (for building from source — the installed binaries have no dependencies)
-
-### From prebuilt binaries
-
-Download `wstart` and `wstart-host.exe` from [CI artifacts](https://github.com/sverrirab/wsl-host-start/actions/workflows/ci.yml), then:
-
-**Step 1 — Windows host** (PowerShell):
-
-```powershell
-.\install-host.ps1
-```
-
-Installs `wstart-host.exe` to `%LOCALAPPDATA%\wstart\` and creates commented-out example `config.toml` and `allowlist.toml` files that you can customize.
-
-**Step 2 — WSL** (bash):
-
-```bash
-./install-wsl.sh
-```
-
-Installs `wstart` to `~/.local/bin/` and verifies the host-side installation is in place.
-
-### From source
-
-Build on any machine (macOS, Linux, Windows with Go):
-
-```bash
-git clone https://github.com/sverrirab/wsl-host-start.git
-cd wsl-host-start
-make build
-```
-
-This cross-compiles both `bin/wstart` (linux/amd64) and `bin/wstart-host.exe` (windows/amd64).
-
-Then run the install scripts as described above, or use `make install` from WSL to do both steps at once.
 
 ## Configuration
 
-All configuration lives on the Windows host in `%LOCALAPPDATA%\wstart\` (created by `install-host.ps1`). wstart works out of the box for common cases. For advanced setups (subst drives, Perforce, env forwarding), edit `config.toml`:
+All configuration lives on the Windows host in `C:\Program Files\wstart\`. wstart works out of the box for common cases. For advanced setups (subst drives, Perforce, env forwarding), edit `config.toml`.
+
+**Important:** After editing any config file, re-sign it from PowerShell:
+
+```powershell
+wstart-host.exe --sign-config
+```
+
+Config files are signed with an HMAC key stored in the Windows Registry to prevent tampering from WSL. If signatures are invalid, wstart will refuse to launch programs.
+
+### config.toml
 
 ```toml
 [drives]
@@ -146,36 +178,33 @@ Result:     P:\project            ← matches p4 workspace root
 
 Run `wstart -refresh-drives` to update the cached drive mappings.
 
-### Allowlist (host-side security)
+### Diagnostics
 
-The Windows helper supports an optional allowlist that restricts which programs and subcommands can be executed. Create `allowlist.toml` in the same directory as `wstart-host.exe` (typically `%LOCALAPPDATA%\wstart\`):
+Check your active configuration from either side:
+
+```bash
+# From WSL
+wstart -check-config
+
+# From PowerShell (more detail — includes drives and signing status)
+wstart-host.exe --check-config
+wstart-host.exe --check-config --verbose
+```
+
+## Security
+
+### Allowlist
+
+The Windows helper supports an optional allowlist that restricts which programs and subcommands can be executed. Edit `allowlist.toml` in `C:\Program Files\wstart\`:
 
 ```toml
-# allowlist.toml — only these programs can be launched via wstart.
+# Only these programs can be launched via wstart.
 # Delete this file to allow all programs.
 
-# Perforce — read-only and standard workflow commands only
 [[allow]]
 program = "p4"
-commands = [
-    # Information
-    "info", "where", "have", "opened", "changes", "describe",
-    "filelog", "annotate", "print", "fstat", "depots", "dirs",
-    "files", "sizes", "users", "clients", "branches", "labels",
-    # Diff
-    "diff", "diff2",
-    # Workspace sync & resolve
-    "sync", "resolve", "resolved",
-    # File editing workflow
-    "edit", "add", "delete", "revert", "move", "copy", "rename",
-    "lock", "unlock",
-    # Changelist management
-    "change", "submit", "shelve", "unshelve",
-    # Login
-    "login", "logout", "set",
-]
+commands = ["info", "sync", "edit", "submit", "diff", "opened"]
 
-# General tools
 [[allow]]
 program = "notepad.exe"
 
@@ -188,12 +217,38 @@ program = "code"
 
 If the file is absent, all programs are allowed. When present, the helper checks each request before executing:
 
-- **Program matching**: case-insensitive, with or without `.exe`, works with full paths (`C:\Program Files\Perforce\p4.exe` matches `p4`)
-- **Subcommand matching**: finds the first positional argument, skipping flags — so `p4 -c myclient edit file.txt` correctly matches `edit`
-- **No commands list**: any arguments are allowed (e.g., `notepad.exe`)
+- **Program matching**: case-insensitive, with or without `.exe`, works with full paths
+- **Subcommand matching**: finds the first positional argument, skipping flags
 - **Denied requests**: return `SE_ERR_ACCESSDENIED` with a descriptive error message
 
-### Using Perforce from WSL
+### Deny list (hardcoded)
+
+The following programs are **always blocked** regardless of allowlist configuration, because they are shell/exec bypass vectors:
+
+`cmd`, `powershell`, `pwsh`, `wscript`, `cscript`, `mshta`, `rundll32`, `regsvr32`, `bash`
+
+This deny list is compiled into the binary and cannot be overridden by editing config files.
+
+### Install directory protection
+
+wstart installs to `C:\Program Files\wstart\`, which requires **administrator privileges** to modify. This means:
+
+- A WSL process (running as a normal user) **cannot** replace the host binary, config files, or signature files
+- `--install` and `--sign-config` automatically request UAC elevation
+- Read-only operations (`--launch`, `--exec`, `--check-config`) do not require elevation
+
+### Config signing
+
+Config files (`config.toml`, `allowlist.toml`) are additionally protected by HMAC-SHA256 signatures:
+
+- A random signing key is stored in the **Windows Registry** (`HKCU\Software\wstart`), which is not accessible from the WSL filesystem
+- Each config file has a companion `.sig` file containing its signature
+- The host binary verifies signatures on every launch — tampered files are rejected
+- After legitimate edits, re-sign with `wstart-host.exe --sign-config` (requires admin)
+
+Together with the Program Files location, this provides defense in depth against a compromised WSL process.
+
+## Using Perforce from WSL
 
 With wstart configured, you can run Perforce commands from your WSL shell with correct drive mapping:
 
@@ -201,29 +256,38 @@ With wstart configured, you can run Perforce commands from your WSL shell with c
 # Sync your workspace (cwd is translated to the subst drive)
 wstart -wait p4 sync
 
-# Edit a file — p4 sees the correct workspace-relative path
+# Edit a file
 wstart -wait p4 edit //depot/main/src/file.cpp
 
 # Check what files you have open
 wstart -wait p4 opened
 
-# Diff against depot
-wstart -wait p4 diff ./src/file.cpp
-
 # Submit a changelist
 wstart -wait p4 submit -d "Fix buffer overflow"
-
-# View workspace info
-wstart -wait p4 info
 
 # Shell alias for convenience
 alias p4='wstart -wait p4'
 p4 sync
 p4 edit file.cpp
-p4 submit -d "my change"
 ```
 
 The `-wait` flag is important for p4 — it makes wstart block until the command finishes so you see the output and get the correct exit code.
+
+## Architecture
+
+Two cooperating binaries connected via JSON over stdin/stdout:
+
+```
+WSL (Linux)                        Windows Host
+┌──────────────┐   LaunchRequest   ┌───────────────────┐
+│  wstart      │ ────────────────► │  wstart-host.exe  │
+│  - parse CLI │   stdin (JSON)    │  - ShellExecuteExW │
+│  - translate │ ◄──────────────── │  - drive enumerate │
+│    paths     │   stdout (JSON)   │  - exit codes      │
+└──────────────┘   LaunchResponse  └───────────────────┘
+```
+
+No daemon, no sockets, no PowerShell. The Windows helper calls Win32 APIs directly for speed and full control.
 
 ## Development
 
@@ -240,8 +304,10 @@ cmd/wstart/          WSL CLI entry point (linux/amd64)
 cmd/wstart-host/     Windows helper entry point (windows/amd64)
 internal/
   protocol/          Shared JSON request/response types
-  allowlist/         Host-side program/subcommand allowlist
+  allowlist/         Host-side program/subcommand allowlist + deny list
   config/            TOML config loading
+  signing/           HMAC-SHA256 config signing (registry key + .sig files)
+  install/           Self-installation logic (Windows side)
   pathconv/          Path translation with drive alias resolution
   drivecache/        TTL-based cache of drive enumeration
   interop/           WSL environment detection
@@ -249,6 +315,17 @@ internal/
   drives/            Win32 drive enumeration (Windows side)
   shellexec/         ShellExecuteExW wrapper (Windows side)
 ```
+
+### Releasing
+
+Releases are built with [GoReleaser](https://goreleaser.com/) via GitHub Actions. To create a release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+This triggers the release workflow which cross-compiles both binaries and publishes a zip to GitHub Releases.
 
 ### CI
 

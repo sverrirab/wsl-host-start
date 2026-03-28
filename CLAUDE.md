@@ -22,6 +22,10 @@ make clean        # Remove bin/
 - `internal/drivecache/` — Drive cache management (WSL side)
 - `internal/interop/` — WSL environment detection (WSL side)
 - `internal/launch/` — Orchestration (WSL side)
+- `internal/allowlist/` — Program allowlist + hardcoded deny list
+- `internal/signing/` — HMAC-SHA256 config signing (registry key + .sig files, Windows side)
+- `internal/elevate/` — UAC elevation detection and self-elevation (Windows side)
+- `internal/install/` — Self-installation to Program Files (Windows side)
 - `internal/drives/` — Win32 drive enumeration (Windows side)
 - `internal/shellexec/` — ShellExecuteExW wrapper (Windows side)
 

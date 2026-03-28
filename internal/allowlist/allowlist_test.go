@@ -326,6 +326,52 @@ func TestLoadMissing(t *testing.T) {
 	}
 }
 
+func TestDenyListBlocksWithoutAllowlist(t *testing.T) {
+	// Even with no allowlist loaded (all-allow mode), denied programs are blocked.
+	lr := &LoadResult{Loaded: false}
+	for _, prog := range DeniedPrograms() {
+		if err := lr.Check(prog, nil); err == nil {
+			t.Errorf("expected %q to be denied", prog)
+		}
+		// Also test with .exe suffix and full path.
+		if err := lr.Check(`C:\Windows\System32\`+prog+".exe", nil); err == nil {
+			t.Errorf("expected %q with full path to be denied", prog)
+		}
+	}
+}
+
+func TestDenyListBlocksWithAllowlist(t *testing.T) {
+	// Even if explicitly allowlisted, denied programs are still blocked.
+	var rules []Rule
+	for _, prog := range DeniedPrograms() {
+		rules = append(rules, Rule{Program: prog})
+	}
+	lr := &LoadResult{Loaded: true, List: &List{Allow: rules}}
+	for _, prog := range DeniedPrograms() {
+		if err := lr.Check(prog, nil); err == nil {
+			t.Errorf("expected %q to be denied even when in allowlist", prog)
+		}
+	}
+}
+
+func TestDenyListDoesNotBlockOtherPrograms(t *testing.T) {
+	lr := &LoadResult{Loaded: false}
+	for _, prog := range []string{"notepad.exe", "p4", "explorer.exe", "code"} {
+		if err := lr.Check(prog, nil); err != nil {
+			t.Errorf("expected %q to be allowed: %v", prog, err)
+		}
+	}
+}
+
+func TestCheckDenyListCaseInsensitive(t *testing.T) {
+	cases := []string{"CMD", "Cmd.exe", "PowerShell.EXE", "PWSH"}
+	for _, prog := range cases {
+		if err := CheckDenyList(prog); err == nil {
+			t.Errorf("expected %q to be denied", prog)
+		}
+	}
+}
+
 func TestLoadMalformed(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, AllowlistFile), []byte("\xef\xbb\xbf[invalid toml"), 0644); err != nil {
