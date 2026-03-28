@@ -29,7 +29,7 @@ scoops:
   - repository:
       owner: sverrirab
       name: scoop-bucket
-      token: "{{ .Env.SCOOP_TOKEN }}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/sverrirab/wsl-host-start
     description: Launch Windows programs from WSL with path translation
     license: MIT
